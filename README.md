@@ -1,0 +1,1 @@
+Replace placeholder with full script from chat.
