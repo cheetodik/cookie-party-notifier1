@@ -1,33 +1,40 @@
+import requests
 
-import json, os, re, requests
-from bs4 import BeautifulSoup
-from pathlib import Path
+HUB_ID = "5p6FS9av9zQagvbQECo51VQLz9c2"
 
-HUB_URL = "https://topdeck.gg/hubs/5p6FS9av9zQagvbQECo51VQLz9c2"
-WEBHOOK = os.environ.get("DISCORD_WEBHOOK")
+def fetch_events():
+    url = f"https://topdeck.gg/api/event-filter/{HUB_ID}"
 
-state_file = Path("data/state.json")
-state = json.loads(state_file.read_text())
+    headers = {
+        "Accept": "application/json",
+        "Content-Type": "application/json",
+        "Origin": "https://topdeck.gg",
+        "Referer": f"https://topdeck.gg/hubs/{HUB_ID}",
+        "User-Agent": "Mozilla/5.0"
+    }
 
-html = requests.get(HUB_URL, timeout=30).text
+    response = requests.post(
+        url,
+        json={},
+        headers=headers,
+        timeout=30
+    )
 
-# Generic extraction; may need adjustment if TopDeck changes markup.
-matches = sorted(set(re.findall(r'/event/([A-Za-z0-9_-]+)', html)))
-new_events = [m for m in matches if m not in state["seen_events"]]
+    response.raise_for_status()
 
-for event_id in new_events:
-    if WEBHOOK:
-        requests.post(
-            WEBHOOK,
-            json={
-                "embeds": [{
-                    "title": "New TopDeck Event Detected",
-                    "description": f"https://topdeck.gg/event/{event_id}"
-                }]
-            },
-            timeout=30
-        )
+    data = response.json()
 
-state["seen_events"] = sorted(set(state["seen_events"] + matches))
-state_file.write_text(json.dumps(state, indent=2))
-print(f"Found {len(new_events)} new events")
+    events = []
+
+    for event in data.get("currEvents", []):
+        events.append({
+            "id": event["id"],
+            "title": event["name"],
+            "game": event["game"],
+            "format": event["format"],
+            "date": event["start"],
+            "location": event.get("location") or "",
+            "url": f"https://topdeck.gg/event/{event['id']}"
+        })
+
+    return events
