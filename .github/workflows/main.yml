@@ -1,0 +1,25 @@
+name: Check TopDeck Events
+
+on:
+  schedule:
+    - cron: '*/1 * * * *'
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install -r requirements.txt
+      - run: python scripts/check_events.py
+      - run: |
+          git config user.name github-actions
+          git config user.email github-actions@github.com
+          git add data/state.json
+          git diff --cached --quiet || git commit -m "Update state"
+          git push
